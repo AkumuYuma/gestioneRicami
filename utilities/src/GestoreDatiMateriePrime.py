@@ -1,5 +1,5 @@
 import json 
-
+import os.path
 class GestoreDatiMateriePrime: 
     """
         Classe per la gestione dei tipi di materie prime.
@@ -10,7 +10,7 @@ class GestoreDatiMateriePrime:
         e ottenere i prodotti attualmente presenti come dizionario
     """ 
 
-    JSONPATH = "dati/tipiMateriaPrima/prezziMateriaPrima.json"
+    JSONPATH = os.path.dirname(__file__) + "/../dati/tipiMateriaPrima/prezziMateriaPrima.json"
 
     def __init__(self) -> None: 
         with open(self.JSONPATH) as jsonFile:

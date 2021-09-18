@@ -2,6 +2,8 @@ from Prodotto import Prodotto
 import sqlite3 as sql
 import datetime as d
 import re
+import os.path 
+import pandas as pd
 
 class InterfacciaDatabase: 
     """
@@ -9,7 +11,7 @@ class InterfacciaDatabase:
         Si vuole renderla il più indipendente possibile dalla scelta di sqlite. (Eventualmente migrabile su mysql)
     """
     
-    DATABASEPATH = "./dati/database/prodotti.db"
+    DATABASEPATH = os.path.dirname(__file__) + "/../dati/database/prodotti.db"
 
     def __init__(self) -> None:
         self._connessione = sql.connect(self.DATABASEPATH)
@@ -38,11 +40,13 @@ class InterfacciaDatabase:
             )""")
         self._connessione.commit()
     
-    def inserisciProdotto(self, oggetto: Prodotto) -> None: 
+    def inserisciProdotto(self, oggetto: Prodotto) -> int: 
         """Inserisce una riga nella tabella a partire dall'oggetto prodotto
 
         Args:
             oggetto (Prodotto): Prodotto da inserire
+        Returns: 
+            int: id dell'oggetto appena inserito 
         """
 
         # Costruisco una stringa con i nomi degli attributi separati da una ,
@@ -81,38 +85,37 @@ class InterfacciaDatabase:
         listaValoriAttributi = listaValoriAttributi.strip().rstrip(",")
 
         # Inserisco nella tabella
-        self._inoltraQuery("INSERT INTO Prodotti (" + listaAttributi + ")" + 
-                          "VALUES (" + listaValoriAttributi + ")")
-        
+        cursore = self._inoltraQuery("INSERT INTO Prodotti (" + listaAttributi + ")" + 
+                          "VALUES (" + listaValoriAttributi + ")") 
         # Confermo i cambiamenti
         self._connessione.commit()
+        return cursore.lastrowid
 
-    def _inoltraQuery(self, query: str) -> None: 
+    def _inoltraQuery(self, query: str) -> sql.Cursor: 
         """
             Inoltra al db la query passata come stringa in linguaggio sql 
         """
         return self._connessione.cursor().execute(query)
 
-    def stampaTabella(self) -> None: 
+    def stampaTabella(self, condizione : str = "") -> None: 
         """
-            Stampa la tabella Prodotti
-        """
-        cursore = self._inoltraQuery("SELECT * FROM Prodotti")
-        for nomeColonna in cursore.description: 
-            print(str(nomeColonna[0]) + "|", end="")
-        print()
-        for row in cursore: 
-            for value in row: 
-                print(str(value) + "|", end="")
-            print() 
+            Stampa gli elementi della tabella che matchano la coindizione
 
-    def ricercaPerParametro(self, condizione: str) -> sql.Cursor:
+        Args:
+            condizione (str, optional): Condizione della query. 
+            Default = "". Se lasciata vuota stampa l'intera tabella
+            
+        """
+        print(self.toDataframe(condizione))
+
+    def ricercaPerParametro(self, condizione: str = "") -> sql.Cursor:
         """Inoltra una query per selezionare solo gli oggetti specificati nella condizione
 
         Args:
             condizione (str, optional): Condizione della query 
                         Esempio : prezzototale > 10 
                         Esempio : tipoProdotto = 'TOTE_BAG'  
+            Default = "". Se lasciata vuota restituisce l'intera tabella
 
         Raises:
             ValueError: Se la colonna su cui si vuole applicare la condizione non esiste
@@ -120,26 +123,20 @@ class InterfacciaDatabase:
         Returns:
             sql.Cursor: Cursore con il risultato della ricerca. 
         """
-        
-        # Controllo che il parametro sia tra le colonne
-        # Seleziono il parametro splittando la stringa al primo carattere non alfanumerico
-        parametro = re.split("[^\w\d]", condizione)[0]
-        if parametro not in [nomeParametro[0] for nomeParametro in self._inoltraQuery("SELECT * FROM Prodotti").description]:
-            raise ValueError("Errore, la colonna su cui eseguire la condizione non esiste")
-        cursore = self._inoltraQuery("SELECT * FROM Prodotti WHERE " + condizione) 
-        return cursore 
-    
-    def stampaDaCursore(self, cursore: sql.Cursor) -> None:
-        """Stampa nella posizione in cui si trova il cursore, utilizzato dopo una ricerca
-           per stampare il risultato 
 
-        Args:
-            cursore (sql.Cursor): cursore con risultato della ricerca
-        """
-        for row in cursore.fetchall():
-            for value in row:
-                print(str(value) + "|" , end="")
-            print()
+        if not condizione: 
+            cursore = self._inoltraQuery("SELECT * FROM Prodotti")
+        
+        else: 
+            
+            # Controllo che il parametro sia tra le colonne
+            # Seleziono il parametro splittando la stringa al primo carattere non alfanumerico
+            parametro = re.split("[^\w\d]", condizione)[0]
+            if parametro not in [nomeParametro[0] for nomeParametro in self._inoltraQuery("SELECT * FROM Prodotti").description]:
+                raise ValueError("Errore, la colonna su cui eseguire la condizione non esiste")
+            cursore = self._inoltraQuery("SELECT * FROM Prodotti WHERE " + condizione) 
+
+        return cursore 
          
     def aggiornaCampo(self, idProdotto: int, campoDaAggiornare: str, nuovoValore) -> None: 
         """Aggiorna un campo della tabella prodotti con un nuovo valore 
@@ -153,43 +150,53 @@ class InterfacciaDatabase:
         self._connessione.cursor().execute(query)
         self._connessione.commit()
     
-    def ottieniProdottidaDbComeLista(self, condizione: str) -> list:
-        """Restituisce una lista di prodotti corrispondenti alla condizione
+    def toDataframe(self, condizione: str = "") -> pd.DataFrame:
+        """Restituisce un dataframe di prodotti corrispondenti alla condizione. Gli indici del df sono gli id dei prodotti nel db. 
+        Se nessun argomento viene passato, viene restituito un dataframe con tutta la tabella
 
         Args:
             condizione (str): condizione di ricerca di prodotti
+            default = "". In questo caso nessuna condizione viene inoltrata, viene stampato l'intera tabella
 
         Returns:
-            list[Prodotto]: lista di prodotti corrispondenti alla ricerca
+            pd.DataFrame: dataframe di prodotti. L'id del db è usato come indice
         """
         listaNuoviProdotti = []
+        listaId = []
         cursore = self.ricercaPerParametro(condizione)
+        
+        # Creo una lista di prodotti
         for listaAttributi in cursore.fetchall(): 
             listaAttributi = list(listaAttributi)
-            listaAttributi.pop(0)
-            listaAttributi.pop(2)
+            # Tolgo l'id
+            listaId.append(listaAttributi.pop(0))
+            # L'elemento all'indice 1 è il costo della materia prima, lo devo togliere 
+            # Al costruttore di Prodotto deve essere passato solo il nome. 
+            listaAttributi.pop(1)
             listaNuoviProdotti.append(Prodotto(*listaAttributi))
-        return listaNuoviProdotti 
+        
+        # Uso la lista di prodotti per creare un dataframe 
+        df = pd.DataFrame.from_records([prodotto.to_dict() for prodotto in listaNuoviProdotti])
+        # Aggiungo la colonna degli Id 
+        df["idProdotto"] = listaId
+        # Uso la colonna degli id come colonna indice del df
+        df = df.set_index("idProdotto")
+        return df 
 
-from creaProdottoDaFile import Interprete
+
+from InterpreteFileIni import InterpreteFileIni
 if __name__ == "__main__": 
-    interprete = Interprete() 
-    oggetto = interprete.leggiDaFile("./dati/fileConfigurazione/provadb.ini")
-    oggetto2 = interprete.leggiDaFile("./dati/fileConfigurazione/esempio.ini")
+    interprete = InterpreteFileIni() 
+    oggetto = interprete.leggiDaFile(os.path.dirname(__file__) + "/../dati/fileConfigurazione/esempio.ini")
     interfaccia = InterfacciaDatabase() 
     interfaccia.creaTabellaProdotti()
-    listaProdotti = interfaccia.ottieniProdottidaDbComeLista("tempoLavoro>39")
-    for prodotto in listaProdotti: 
-        print(prodotto)
+    interfaccia.stampaTabella("filoUsato > 1")
     # interfaccia.inserisciProdotto(oggetto) 
     # interfaccia.inserisciProdotto(oggetto2) 
+    df = interfaccia.toDataframe("tempoLavoro>5")
+    print(df)
     # interfaccia.aggiornaCampo(2, "tempoLavoro", 15)
     # interfaccia.stampaTabella()
     # print("Ora stampo la ricerca")
     # interfaccia.stampaDaCursore(interfaccia.ricercaPerParametro("acquirente='Ciccio Gamer'"))
     # interfaccia.stampaDaCursore(interfaccia.ricercaPerParametro("prezzoTotale > 10")) 
-
-
-# TODO Trova prodotto secondo una condizione, usare il cursore per creare e restituire
-#       un array di oggetti prodotto che rispettano la condizione e stamparli a schermo 
-#       così poi si può chiedere di stamparli su file

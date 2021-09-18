@@ -1,0 +1,1 @@
+Cartella in cui vengono stampati i dati dei prodotti scritti su file

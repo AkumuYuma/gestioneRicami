@@ -1,3 +1,4 @@
+
 import datetime as d 
 from GestoreDatiMateriePrime import GestoreDatiMateriePrime
 
@@ -11,7 +12,7 @@ class Prodotto:
 
         if tipoProdotto: 
             self.tipoProdotto = tipoProdotto 
-        else: self._tipoProdotto : tuple = None 
+        else: self._tipoProdotto : tuple = None  # tipo[0] nome, tipo[1] costo
 
         self._dataCommissione = dataCommissione 
         self._dataInizio = dataInizio 
@@ -24,20 +25,6 @@ class Prodotto:
         self._guadagno = None 
         self._guadagnoOrario = None 
 
-        # self._tipoProdotto : tuple = None # tipo(0) nome, tipo(1) costo
-
-        # self._dataCommissione : d.date = None  
-        # self._dataInizio: d.date = None 
-        # self._dataFine : d.date = None
-        # self._tempoLavoro : float = 0 # in ore  
-
-        # self._filoUsato : float = 0 # in numero di matasse 
-        # self._costoFilo : float = 1 # a matassa 
-        # self._prezzoTotale : float = 0 # euro
-        # self._guadagno : float = None # euro 
-        # self._guadagnoOrario : float = None # euro 
-
-        # self._acquirente : str = "" 
         
     @property 
     def tipoProdotto(self) -> tuple: 
@@ -129,6 +116,26 @@ class Prodotto:
     def acquirente(self, persona: str) -> None:
         self._acquirente = persona
         
+    def to_dict(self) -> dict: 
+        """Converte il prodotto in un dizionario
+
+        Returns:
+            dict: chiavi: attributi, valori: valori
+        """
+        return {
+            "tipoProdotto": self.tipoProdotto[0], 
+            "costoMateriaPrima": self.tipoProdotto[1], 
+            "dataCommissione":self.dataCommissione,
+            "dataInizio":self.dataInizio,
+            "dataFine":self.dataFine,
+            "tempoLavoro":self.tempoLavoro,
+            "filoUsato":self.filoUsato,
+            "costoFilo":self.costoFilo,
+            "prezzoTotale":self.prezzoTotale,
+            "acquirente":self.acquirente,
+            "guadagno":self.guadagno,
+            "guadagnoOrario":self.guadagnoOrario
+        }
 
     def __str__(self) -> str:
         risposta = (
@@ -137,17 +144,24 @@ class Prodotto:
             f"Costo {self.tipoProdotto[0]}: {self.tipoProdotto[1]:.2f}E al pezzo \n"
             f"Data Commissione: {self.dataCommissione} \n"
             f"Data Inizio: {self.dataInizio} \n" 
-            f"Data Fine: {self.dataFine} \n")
-        
-        # Se posso calcolare il tempo di lavoro lo inserisco 
-        if self.tempoLavoro > 0: risposta +=  f"Tempo di lavoro: {self.tempoLavoro} ore\n"
-        else: risposta += f"Ore di lavoro non calcolabili per questo oggetto... \n" 
-        risposta += (
+            f"Data Fine: {self.dataFine} \n"
+            f"Tempo lavoro: {self.tempoLavoro} ore \n"
             f"Filo usato: {self.filoUsato:.2f} matasse \n"
             f"Costo filo: {self.costoFilo:.2f}E a matassa \n"
             f"Prezzo: {self.prezzoTotale:.2f}E \n"
-            f"Guadagno: {self.guadagno:.2f}E \n" 
-            f"Guadagno orario: {self.guadagnoOrario:.2f}E all'ora \n"
+            ) 
+        
+        if self.guadagno: 
+            risposta += f"Guadagno: {self.guadagno:.2f}E \n" 
+        else: 
+            risposta += f"Guadagno: {self.guadagno} \n" 
+            
+        if self.guadagnoOrario: 
+            risposta += f"Guadagno orario: {self.guadagnoOrario:.2f}E all'ora \n"
+        else: 
+            risposta += f"Guadagno orario: {self.guadagnoOrario} \n"
+
+        risposta += (
             f"Venduta a: {self.acquirente} \n"
             "-------------------------------"
         )
@@ -160,12 +174,9 @@ class Prodotto:
             ValueError: Se prezzo o quantità di filo non impostata
             RuntimeError: Se il tipo prodotto non è stato impostato 
         """
-        if self.prezzoTotale == 0 or self.filoUsato == 0: 
-            raise ValueError("Impossibile calcolare il guadagno, prezzo o quantità di filo non impostata")
         totaleFilo = self.costoFilo * self.filoUsato 
-        if not self.tipoProdotto: 
-            raise RuntimeError("Impossibile, calcolare il guadagno, non si è impostato il tipo del prodotto e il suo prezzo")
-        self._guadagno = self.prezzoTotale - totaleFilo - self.tipoProdotto[1] 
+        if self.prezzoTotale != 0 and self.filoUsato != 0 and self.tipoProdotto: 
+            self._guadagno = self.prezzoTotale - totaleFilo - self.tipoProdotto[1] 
 
 
     def _calcolaGuadagnoOrario(self) -> float: 
@@ -176,11 +187,99 @@ class Prodotto:
         """
         if self.tempoLavoro > 0 and self.guadagno:
             self._guadagnoOrario = self.guadagno / self.tempoLavoro 
-        else: 
-            raise ValueError("Errore, tempo lavoro errato o guadagno non definito")
 
+# Funzioni helper per la classe Prodotto
+def leggiProdottoDaInput() -> Prodotto: 
+    """Legge un nuovo prodotto da input
+
+    Returns:
+        Prodotto: prodotto registrato
+    """
+    nuovoProdotto = Prodotto() 
+    tipoProdotto = input("Inserire la materia prima (in maiuscolo e con _ al posto degli spazi): ")
+    try: 
+        nuovoProdotto.tipoProdotto = tipoProdotto 
+    except KeyError: 
+        print("Il tipo è sconosciuto, lo registro") 
+        costo = float(input("Inserire costo materia prima al pezzo (in euro): "))
+        GestoreDatiMateriePrime().aggiungiTipoProdotto(tipoProdotto, costo)
+
+    nuovoProdotto.tipoProdotto = tipoProdotto
+    dataCommissioneStringa = input("Inserire data di commissione nel formato aa,mm,gg (o aa-mm-gg): ")
+    settaDataProdotto(nuovoProdotto, "commissione", dataCommissioneStringa)
+    dataInizioStringa = input("Inserire data di inizio: ")
+    settaDataProdotto(nuovoProdotto, "inizio", dataInizioStringa)
+    dataFineStringa = input("Inserire data di fine: ")
+    settaDataProdotto(nuovoProdotto, "fine", dataFineStringa)
+
+    tempoLavoro = input("Inserire ore di lavoro: ")
+    settaValoreProdotto(nuovoProdotto, "ore", tempoLavoro)
+    filoUsato = input("Inserire filo usato (in numero di matasse): ")
+    settaValoreProdotto(nuovoProdotto, "filo", filoUsato)
+    costoFilo = input("Inserire costo matassa (se lasciato vuoto verrà usato 1E): ")
+    settaValoreProdotto(nuovoProdotto, "costo_filo", costoFilo)
+    prezzo = input("Inserire prezzo prodotto: ")
+    settaValoreProdotto(nuovoProdotto, "prezzo", prezzo)
+
+    acquirente = input("Inserire acquirente: ")
+    nuovoProdotto.acquirente = acquirente
+
+    return nuovoProdotto 
     
-    
+def settaDataProdotto(prodotto: Prodotto, tipoData: str, dataStringa: str) -> None:
+    """Setta la data nel prodotto passato se nessuna data viene passata, la lascia a None
+
+    Args:
+        prodotto (Prodotto): Prodotto di cui settare la data
+        tipoData (str): commissione, inizio, fine
+        dataStringa (str, optional): Data separata da , o -. 
+
+    Raises:
+        ValueError: [description]
+    """
+    data = dataStringa.strip().replace("-", ",").replace(" ", "").split(",")
+    if not tipoData in ["commissione", "inizio", "fine"]:
+        raise ValueError("Tipo data non valido")
+    # Se la data non è inserita lascio il campo non settato (di default nei prodotti è a None)
+    if dataStringa:  
+        try:
+            if tipoData == "commissione":
+                prodotto.dataCommissione = d.date(int(data[0]), int(data[1]), int(data[2])) 
+            elif tipoData == "inizio": 
+                prodotto.dataInizio = d.date(int(data[0]), int(data[1]), int(data[2])) 
+            else: 
+                prodotto.dataFine = d.date(int(data[0]), int(data[1]), int(data[2])) 
+        except ValueError:
+            print("Data inserita non valida lasciato campo vuoto")
+
+def settaValoreProdotto(prodotto: Prodotto, tipoValore: str, valore: str) -> None: 
+    """Setta il valore del tipo specificato nel oggetto prodotto
+
+    Args:
+        prodotto (Prodotto): Oggetto da aggiornare 
+        tipoValore (str): attributo da aggiornare 
+        valore (str): Valore. Attenzione. Lasciato in stringa perchè potrebbe essere "" (e quindi non convertibile a float). 
+                      In quel caso viene lasciato il valore di default del costruttore. 
+
+    Raises:
+        ValueError: Se il tipo passato non è valido
+    """
+    if tipoValore not in ["ore", "filo", "costo_filo", "prezzo"]:
+        raise ValueError("Attributo \"" + valore + "\" non valido.")
+
+
+    if valore:
+        valore = float(valore)
+        if tipoValore == "ore":
+            prodotto.tempoLavoro = valore
+        elif tipoValore == "filo":
+            prodotto.filoUsato = valore 
+        elif tipoValore == "costo_filo":
+            prodotto.costoFilo = valore 
+        else: 
+            prodotto.prezzoTotale = valore 
+
+
 if __name__ == "__main__":
     a = Prodotto()
     a.tipoProdotto = "TOTE_BAG"
@@ -192,4 +291,5 @@ if __name__ == "__main__":
     a.prezzoTotale = 10 
     a.acquirente = "Ciccio"
     print(a)
+    print(a.to_dict())
     

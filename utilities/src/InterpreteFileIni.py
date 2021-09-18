@@ -3,7 +3,10 @@ import datetime as d
 import configparser as c
 from GestoreDatiMateriePrime import GestoreDatiMateriePrime
 
-class Interprete: 
+
+    
+
+class InterpreteFileIni: 
     """
     Classe per interpretare un file ini passato come argomento e creare un corrispondente prodotto. 
     Permette anche di scrivere un file ini a partire da un tipo Prodotto 
@@ -23,56 +26,54 @@ class Interprete:
             * acquirente 
     """
     
-    def leggiDaFile(self, path: str = "") -> Prodotto: 
+    def leggiDaFile(self, path: str) -> Prodotto: 
         """Restituisce un oggetto di tipo Prodotto specializzato in base ai dati letti nel file
 
         Args:
-            path (str, optional): Path del file ini da leggere. Defaults to "".
+            path (str): Path del file ini da leggere. 
 
         Raises:
             ValueError: Se il tipo di prodotto specificato nel file è sconosciuto
         """
         nuovoProdotto = Prodotto()
-        if path: 
-            fileParser = c.ConfigParser()
-            fileParser.read(path)
-            prodottoLettoDaFile = fileParser["PRODOTTO"]
-            
-            # Controllo che il tipo di prodotto sia specificato 
-            try: 
-                tipoProdotto = prodottoLettoDaFile["tipo"]
-            except KeyError: 
-                print("[DEBUG] Tipo prodotto non specificato. L'errore è fatale. Esco")
-                exit(1)
+        fileParser = c.ConfigParser()
+        fileParser.read(path)
+        prodottoLettoDaFile = fileParser["PRODOTTO"]
+        
+        # Controllo che il tipo di prodotto sia specificato 
+        try: 
+            tipoProdotto = prodottoLettoDaFile["tipo"]
+        except KeyError: 
+            print("[DEBUG] Tipo prodotto non specificato. L'errore è fatale. Esco")
+            exit(1)
 
-            # Controllo che il tipo sia tra quelli già presenti 
+        # Controllo che il tipo sia tra quelli già presenti 
+        try: 
+            nuovoProdotto.tipoProdotto = tipoProdotto
+        except KeyError: 
+            # Se non lo è lo inserisco al momento 
             try: 
+                GestoreDatiMateriePrime().aggiungiTipoProdotto(tipoProdotto, float(prodottoLettoDaFile["costo"]))
                 nuovoProdotto.tipoProdotto = tipoProdotto
             except KeyError: 
-                # Se non lo è lo inserisco al momento 
-                print("[DEBUG] Il tipo è nuovo, devo registrarlo")
-                gestore = GestoreDatiMateriePrime() 
-                try:
-                    gestore.aggiungiTipoProdotto(tipoProdotto, float(prodottoLettoDaFile["costo"])) 
-                    nuovoProdotto.tipoProdotto = tipoProdotto
-                except KeyError: 
-                    print("[DEBUG] Inserito un nuovo tipo di prodotto ma non specificato il prezzo. \nL'errore è fatale")
-                    exit(1)
+                print("[DEBUG] Inserito un nuovo tipo di prodotto ma non specificato il prezzo. \nL'errore è fatale")
+                quit()
                 
 
-            for data in ["commissione", "inizio", "fine"]: 
-                self._settaData(prodottoLettoDaFile, nuovoProdotto, data)
-            for valoreNumerico in ["ore", "filo", "costo_filo", "prezzo"]: 
-                self._settaValoreNumerico(prodottoLettoDaFile, nuovoProdotto, valoreNumerico)
+        # Setto date e valori numerici
+        for data in ["commissione", "inizio", "fine"]: 
+            self._settaData(prodottoLettoDaFile, nuovoProdotto, data)
+        for valoreNumerico in ["ore", "filo", "costo_filo", "prezzo"]: 
+            self._settaValoreNumerico(prodottoLettoDaFile, nuovoProdotto, valoreNumerico)
 
-            # Setto l'acquirente 
-            try: 
-                acquirente = prodottoLettoDaFile["acquirente"]
-                nuovoProdotto.acquirente = acquirente 
-            except KeyError:
-                print("[DEBUG] Nessun acquirente inserito, lascio il campo vuoto")
+        # Setto l'acquirente 
+        try: 
+            acquirente = prodottoLettoDaFile["acquirente"]
+            nuovoProdotto.acquirente = acquirente 
+        except KeyError:
+            print("[DEBUG] Nessun acquirente inserito, lascio il campo vuoto")
 
-            return nuovoProdotto
+        return nuovoProdotto
     
     def _settaData(self, parserProdotto: c.ConfigParser, prodotto: Prodotto, attributo: str) -> None:
         """Setta le date specificate da attributo
@@ -177,9 +178,10 @@ class Interprete:
             
     
 import sys
+import os.path
 if __name__ == "__main__":
-    interprete = Interprete()
-    prodotto = interprete.leggiDaFile("./dati/fileConfigurazione/esempio.ini")
+    interprete = InterpreteFileIni()
+    prodotto = interprete.leggiDaFile(os.path.dirname(__file__) + "/../dati/fileConfigurazione/esempio.ini")
     print(prodotto)
-    interprete.scriviProdottoSuFile(prodotto, "./dati/fileConfigurazione/provaScrittura.ini")
+    interprete.scriviProdottoSuFile(prodotto, os.path.dirname(__file__) + "/../dati/stampati/provaScrittura.ini")
     
