@@ -116,7 +116,7 @@ class Prodotto:
     def acquirente(self, persona: str) -> None:
         self._acquirente = persona
         
-    def to_dict(self) -> dict: 
+    def _to_dict(self) -> dict: 
         """Converte il prodotto in un dizionario
 
         Returns:
