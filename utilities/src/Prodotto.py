@@ -1,5 +1,6 @@
 
-import datetime as d 
+import datetime as d
+from typing import Type 
 from GestoreDatiMateriePrime import GestoreDatiMateriePrime
 
 class Prodotto: 
@@ -13,15 +14,15 @@ class Prodotto:
         if tipoProdotto: 
             self.tipoProdotto = tipoProdotto 
         else: self._tipoProdotto : tuple = None  # tipo[0] nome, tipo[1] costo
-
-        self._dataCommissione = dataCommissione 
-        self._dataInizio = dataInizio 
-        self._dataFine = dataFine 
-        self._tempoLavoro = tempoLavoro 
-        self._filoUsato = filoUsato 
-        self._costoFilo = costoFilo
-        self._prezzoTotale = prezzo 
-        self._acquirente = acquirente 
+        
+        self.dataCommissione = dataCommissione 
+        self.dataInizio = dataInizio 
+        self.dataFine = dataFine 
+        self.tempoLavoro = tempoLavoro 
+        self.filoUsato = filoUsato 
+        self.costoFilo = costoFilo
+        self.prezzoTotale = prezzo 
+        self.acquirente = acquirente 
         self._guadagno = None 
         self._guadagnoOrario = None 
 
@@ -31,6 +32,7 @@ class Prodotto:
         return self._tipoProdotto 
     @tipoProdotto.setter 
     def tipoProdotto(self, tipo: str) -> None: 
+        tipo = str(tipo)
         gestore = GestoreDatiMateriePrime() 
         if tipo in gestore.dizionarioProdotti: 
             self._tipoProdotto = (tipo, gestore.dizionarioProdotti[tipo])
@@ -42,32 +44,72 @@ class Prodotto:
         return self._dataCommissione
     @dataCommissione.setter 
     def dataCommissione(self, giorno: d.date) -> None:
-        self._dataCommissione = giorno 
+        # Controllo se il valore inserito è una data o una stringa
+        if giorno is not None: 
+            if isinstance(giorno, str): 
+                dataStringa = giorno.strip().replace(",", "-").split("-")
+                giornoData = d.date(int(dataStringa[0]), int(dataStringa[1]), int(dataStringa[2]))
+            elif isinstance(giorno, d.date):
+                giornoData = giorno
+            else: 
+                # Se non è nessuna delle due c'è un errore
+                raise TypeError("Il giorno inserito non è una data o una stringa")
+            self._dataCommissione = giornoData
+        else: 
+            self._dataCommissione = None 
     
     @property 
     def dataInizio(self) -> d.date: 
         return self._dataInizio 
     @dataInizio.setter 
     def dataInizio(self, giorno: d.date) -> None: 
-        if isinstance(self.dataCommissione, d.date) and (giorno < self.dataCommissione):
-            raise ValueError("Si tenta di inserire data inizio prima della data commissione")
-        self._dataInizio = giorno 
+        if giorno is not None: 
+            # Controllo se il valore inserito è una data o una stringa
+            if isinstance(giorno, str): 
+                dataStringa = giorno.strip().replace(",", "-").split("-")
+                giornoData = d.date(int(dataStringa[0]), int(dataStringa[1]), int(dataStringa[2]))
+            elif isinstance(giorno, d.date):
+                giornoData = giorno
+            else: 
+                # Se non è nessuna delle due c'è un errore
+                raise TypeError("Il giorno inserito non è una data o una stringa")
+            
+            if self.dataCommissione and (giornoData < self.dataCommissione):
+                # Controllo che il giorno inserito non sia precedente alla data di commissione
+                raise ValueError("Si tenta di inserire data inizio prima della data commissione")
 
+            self._dataInizio = giornoData 
+            
+        else: self._dataInizio = None 
     @property 
     def dataFine(self) -> d.date: 
         return self._dataFine 
     @dataFine.setter 
     def dataFine(self, giorno: d.date) -> None:
-        if isinstance(self.dataCommissione, d.date) and (giorno < self.dataInizio): 
-            raise ValueError("Si tenta di inserire una data di fine precedente alla data di inizio")
-        self._dataFine = giorno 
+        if giorno is not None: 
+            # Controllo se il valore inserito è una data o una stringa
+            if isinstance(giorno, str): 
+                dataStringa = giorno.strip().replace(",", "-").split("-")
+                giornoData = d.date(int(dataStringa[0]), int(dataStringa[1]), int(dataStringa[2]))
+            elif isinstance(giorno, d.date):
+                giornoData = giorno
+            else: 
+                # Se non è nessuna delle due c'è un errore
+                raise TypeError("Il giorno inserito non è una data o una stringa")
+            
+            if self.dataInizio and giornoData < self.dataInizio: 
+                raise ValueError("Si tenta di inserire una data di fine precedente alla data di inizio")
+            self._dataFine = giornoData
+        else: self._dataFine = None
         
     @property 
     def tempoLavoro(self) -> float: 
         return self._tempoLavoro
     @tempoLavoro.setter 
     def tempoLavoro(self, ore: float): 
-        if ore <= 0: 
+        # Converto in float, così se ho una stringa o un tipo sbagliato sorge un errore
+        ore = float(ore)
+        if ore < 0: 
             raise ValueError("Tempo lavoro inserito non valido")
         self._tempoLavoro = ore
 
@@ -76,6 +118,7 @@ class Prodotto:
         return self._filoUsato 
     @filoUsato.setter
     def filoUsato(self, numeroMatasse: float) -> None: 
+        numeroMatasse = float(numeroMatasse)
         if numeroMatasse < 0: 
             raise ValueError("Filo usato negativo")
         self._filoUsato = numeroMatasse 
@@ -85,6 +128,7 @@ class Prodotto:
         return self._costoFilo 
     @costoFilo.setter 
     def costoFilo(self, costo: float) -> None: 
+        costo = float(costo)
         if costo < 0: 
             raise ValueError("Costo filo negativo")
         self._costoFilo = costo
@@ -94,6 +138,7 @@ class Prodotto:
         return self._prezzoTotale 
     @prezzoTotale.setter 
     def prezzoTotale(self, prezzo: float) -> None: 
+        prezzo = float(prezzo)
         if prezzo < 0: 
             raise ValueError("Prezzo totale negativo")
         self._prezzoTotale = prezzo 
@@ -114,6 +159,7 @@ class Prodotto:
         return self._acquirente
     @acquirente.setter
     def acquirente(self, persona: str) -> None:
+        persona = str(persona)
         self._acquirente = persona
         
     def _to_dict(self) -> dict: 
@@ -180,10 +226,8 @@ class Prodotto:
 
 
     def _calcolaGuadagnoOrario(self) -> float: 
-        """Calcola il guadagno orario e setta il valore dell'attributo
+        """Calcola il guadagno orario e setta il valore dell'attributo. Se guadagno non c'è o il tempoLavoro è negativo o 0 non fa niente.
 
-        Raises:
-            ValueError: Se il tempo di lavoro è pari a 0 o non impostato o se l'attributo guadagno non è definito
         """
         if self.tempoLavoro > 0 and self.guadagno:
             self._guadagnoOrario = self.guadagno / self.tempoLavoro 
@@ -281,15 +325,7 @@ def settaValoreProdotto(prodotto: Prodotto, tipoValore: str, valore: str) -> Non
 
 
 if __name__ == "__main__":
-    a = Prodotto()
-    a.tipoProdotto = "TOTE_BAG"
-    a.dataCommissione = d.date(2020, 10, 8)
-    a.dataInizio = d.date(2020, 10, 9)
-    a.dataFine = d.date(2020, 10, 12)
-    a.tempoLavoro = 10 # Ore
-    a.filoUsato = 3 
-    a.prezzoTotale = 10 
-    a.acquirente = "Ciccio"
+    listaAttributi = ["a", "2020-10-10", "2020-10-11", None]
+    a = Prodotto(*listaAttributi)
     print(a)
-    print(a.to_dict())
     

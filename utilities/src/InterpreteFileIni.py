@@ -3,9 +3,6 @@ import datetime as d
 import configparser as c
 from GestoreDatiMateriePrime import GestoreDatiMateriePrime
 
-
-    
-
 class InterpreteFileIni: 
     """
     Classe per interpretare un file ini passato come argomento e creare un corrispondente prodotto. 
@@ -25,7 +22,7 @@ class InterpreteFileIni:
             * prezzo 
             * acquirente 
     """
-    
+    # Metodi pubblici  
     def leggiDaFile(self, path: str) -> Prodotto: 
         """Restituisce un oggetto di tipo Prodotto specializzato in base ai dati letti nel file
 
@@ -74,7 +71,21 @@ class InterpreteFileIni:
             print("[DEBUG] Nessun acquirente inserito, lascio il campo vuoto")
 
         return nuovoProdotto
-    
+
+    def scriviProdottoSuFile(self, oggetto: Prodotto, pathFile: str) -> None:
+        """Scrive il prodtto passato come parametro su un file ini 
+
+        Args:
+            oggetto (Prodotto): oggetto da scrivere su file
+            pathFile (str): path del file da scrivere e nome
+        """
+        parser = c.ConfigParser() 
+        parser["PRODOTTO"] = {}
+        self._controllaEAggiungi(parser, oggetto)
+        with open(pathFile, "w") as f: 
+            parser.write(f)
+
+    # Metodi privati
     def _settaData(self, parserProdotto: c.ConfigParser, prodotto: Prodotto, attributo: str) -> None:
         """Setta le date specificate da attributo
 
@@ -90,18 +101,20 @@ class InterpreteFileIni:
         if attributo not in ["commissione", "inizio", "fine"]:
             raise ValueError("Attributo \"" + attributo + "\" non valido")
         
-        try:  
+        try: 
             dataStringa = parserProdotto[attributo]
-            dataListaStringhe = dataStringa.strip().replace("-", ",").split(",")
-            if attributo == "commissione":
-                prodotto.dataCommissione = d.date(int(dataListaStringhe[0]), int(dataListaStringhe[1]), int(dataListaStringhe[2]))
-            elif attributo == "inizio":
-                prodotto.dataInizio = d.date(int(dataListaStringhe[0]), int(dataListaStringhe[1]), int(dataListaStringhe[2]))
-            else: 
-                prodotto.dataFine = d.date(int(dataListaStringhe[0]), int(dataListaStringhe[1]), int(dataListaStringhe[2]))
+            print(dataStringa)
+            attr = "data" + attributo.capitalize()
+            setattr(prodotto, attr, dataStringa)
+            # if attributo == "commissione":
+            #     prodotto.dataCommissione = dataStringa
+            # elif attributo == "inizio":
+            #     prodotto.dataInizio = dataStringa
+            # else: 
+            #     prodotto.dataFine = dataStringa
         except KeyError:
             print("[DEBUG]: Nessuna data " + attributo + " immessa, campo lasciato vuoto")
-    
+
     def _settaValoreNumerico(self, parserProdotto: c.ConfigParser, prodotto: Prodotto, attributo: str) -> None: 
         """Setta i valori numerici al prodotto
 
@@ -128,20 +141,6 @@ class InterpreteFileIni:
                 prodotto.prezzoTotale = valore 
         except KeyError:
             print("[DEBUG]: Nessun valore " + attributo + " immesso, campo lasciato vuoto")
-    
-
-    def scriviProdottoSuFile(self, oggetto: Prodotto, pathFile: str) -> None:
-        """Scrive il prodtto passato come parametro su un file ini 
-
-        Args:
-            oggetto (Prodotto): oggetto da scrivere su file
-            pathFile (str): path del file da scrivere e nome
-        """
-        parser = c.ConfigParser() 
-        parser["PRODOTTO"] = {}
-        self._controllaEAggiungi(parser, oggetto)
-        with open(pathFile, "w") as f: 
-            parser.write(f)
 
     def _controllaEAggiungi(self, parser: c.ConfigParser, oggetto: Prodotto) -> None:
         """Scannerizza gli attributi dell'oggetto Prodotto e scrive nel parser solo i campi pieni 
@@ -183,5 +182,4 @@ if __name__ == "__main__":
     interprete = InterpreteFileIni()
     prodotto = interprete.leggiDaFile(os.path.dirname(__file__) + "/../dati/fileConfigurazione/esempio.ini")
     print(prodotto)
-    interprete.scriviProdottoSuFile(prodotto, os.path.dirname(__file__) + "/../dati/stampati/provaScrittura.ini")
     

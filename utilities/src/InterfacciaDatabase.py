@@ -13,12 +13,20 @@ class InterfacciaDatabase:
     
     DATABASEPATH = os.path.dirname(__file__) + "/../dati/database/prodotti.db"
 
+    # Metodi privati 
     def __init__(self) -> None:
         self._connessione = sql.connect(self.DATABASEPATH)
     
     def __del__(self) -> None: 
         self._connessione.close()
-    
+
+    def _inoltraQuery(self, query: str) -> sql.Cursor: 
+        """
+            Inoltra al db la query passata come stringa in linguaggio sql 
+        """
+        return self._connessione.cursor().execute(query)
+
+    # Metodi pubblici 
     def creaTabellaProdotti(self) -> None: 
         """
             Crea la tabella prodotti se non esiste
@@ -42,69 +50,36 @@ class InterfacciaDatabase:
             )""")
         self._connessione.commit()
     
-    def inserisciProdotto(self, oggetto: Prodotto) -> int: 
+    def inserisciProdotto(self, oggetto: Prodotto, idProdotto: int = None) -> int: 
         """Inserisce una riga nella tabella a partire dall'oggetto prodotto
 
         Args:
             oggetto (Prodotto): Prodotto da inserire
+            idProdotto (int): Se non specificato inserisce un nuovo prodotto su una nuova riga. 
+                              Se specificato sostituisce il prodotto alla riga id con il prodotto passato 
         Returns: 
             int: id dell'oggetto appena inserito 
         """
         # Costruisco una stringa con i nomi degli attributi separati da una ,
-        listaAttributi = "" 
-        for attr in dir(oggetto): 
-            if not attr.startswith("_") : 
-                if attr == "tipoProdotto": 
-                    listaAttributi += "tipoProdotto, "  
-                    listaAttributi += "costoMateriale, "
-                else: 
-                    listaAttributi += attr + ", "
-                
+        listaAttributi = InterfacciaDatabase.generaStringaAttributi(oggetto)        
         # Costruisco una stringa con i valori degli attributi (nello stesso ordine dei nomi)
         # Le stringhe sono circondate dal simbolo '
-        listaValoriAttributi = ""
-        for attr in dir(oggetto):
-            if attr == "to_dict": continue
-            if not attr.startswith("_"):
-                # Tipo prodotto lo devo gestire separatamente
-                if attr == "tipoProdotto": 
-                    listaValoriAttributi += "'" + str(getattr(oggetto, attr)[0]) + "'" + ", "
-                    listaValoriAttributi += str(getattr(oggetto, attr)[1]) + ", "
-                elif getattr(oggetto, attr) is not None: 
-                    # Se l'attributo contiene un valore lo inserisco 
-
-                    # Se il valore è stringa o data, metto le ' attorno per scriverlo come stringa
-                    if isinstance(getattr(oggetto, attr), str) or isinstance(getattr(oggetto, attr), d.date): 
-                        listaValoriAttributi += "'" + str(getattr(oggetto, attr)) + "'"+ ", " 
-                    # Altrimenti basta inserire direttamente il valore
-                    else: 
-                        listaValoriAttributi += str(getattr(oggetto, attr)) + ", "
-                
-                # Caso in cui l'attributo è None.
-                else:
-                    # Se sono in uno dei casi di data o stringa, devo lasciare il campo vuoto
-                    if attr in ["dataCommissione", "dataInizio", "dataFine", "acquirente"]:
-                        listaValoriAttributi += "'" + str(getattr(oggetto, attr)) + "'"+ ", " 
-                    else:
-                        # Se l'attributo vuoto è guadagno o guadagnoOrario metto un valore sentinella di -1
-                        listaValoriAttributi += "-1, "
-
+        listaValoriAttributi = InterfacciaDatabase.generaStringaValoriAttributi(oggetto)
         
         # Tolgo le virgole finali    
-        listaAttributi = listaAttributi.strip().rstrip(",")
-        listaValoriAttributi = listaValoriAttributi.strip().rstrip(",")
         # Inserisco nella tabella
-        cursore = self._inoltraQuery("INSERT INTO Prodotti (" + listaAttributi + ")" + 
-                          "VALUES (" + listaValoriAttributi + ")") 
+
+        if idProdotto:
+            # Se ho specificato l'id devo sostituire
+            cursore = self._inoltraQuery("REPLACE INTO Prodotti (idProdotto, " + listaAttributi + ")" + 
+                                        f"VALUES ({idProdotto}, " + listaValoriAttributi + ")") 
+        else:     
+            # Altrimenti inserisco una nuova riga
+            cursore = self._inoltraQuery("INSERT INTO Prodotti (" + listaAttributi + ")" + 
+                                        "VALUES (" + listaValoriAttributi + ")") 
         # Confermo i cambiamenti
         self._connessione.commit()
         return cursore.lastrowid
-
-    def _inoltraQuery(self, query: str) -> sql.Cursor: 
-        """
-            Inoltra al db la query passata come stringa in linguaggio sql 
-        """
-        return self._connessione.cursor().execute(query)
 
     def stampaTabella(self, condizione : str = "") -> None: 
         """
@@ -156,14 +131,19 @@ class InterfacciaDatabase:
             nuovoValore ([type]): nuovo valore del campo, può essere una stringa o un numero
         """
 
-        query = f"UPDATE Prodotti SET {campoDaAggiornare} = {nuovoValore} WHERE idProdotto = {idProdotto}"
-        self._inoltraQuery(query)
+        # Ottengo il prodotto a partire dall'id nel db 
+        _ , listaProdotto = InterfacciaDatabase.generaListaProdottiDaCursore(self._inoltraQuery(f"SELECT * FROM Prodotti WHERE idProdotto={idProdotto}"))
+        nuovoProdotto = listaProdotto[0] 
 
-        # Dopo aver aggiornato il campo, devo ricalcolare il guadagno 
-        # Creo un nuovo oggetto prodotto con i dati corrispondenti all'id scelto
-        nuovoProdotto = generaListaProdottiDaCursore(self._inoltraQuery(f"SELECT * FROM Prodotti WHERE idProdotto={idProdotto}"))
-        # Aggiorno il campo guadagno e guadagno orario sul prodotto con l'id scelto
-        query2 = f"UPDATE Prodotti SET guadagno = {nuovoProdotto.guadagno}, guadagnoOrario = {nuovoProdotto.guadagnoOrario} WHERE idProdotto = {idProdotto}"
+        # Aggiorno il campo giusto usando i controlli sui setter
+        if campoDaAggiornare == "costoMateriale": 
+            # Non puoi cambiare il costo del materiale 
+            raise KeyError("Non puoi cambiare il costo del materiale")
+        else: 
+            setattr(nuovoProdotto, campoDaAggiornare, nuovoValore)     
+
+        # Sostituisco l'oggetto nel db  
+        self.inserisciProdotto(nuovoProdotto, idProdotto)
         self._connessione.commit()
     
     def toDataframe(self, condizione: str = "") -> pd.DataFrame:
@@ -181,59 +161,124 @@ class InterfacciaDatabase:
         listaId = []
         cursore = self.ricercaPerParametro(condizione)
         
-        listaId, listaNuoviProdotti = generaListaProdottiDaCursore(cursore) 
+        listaId, listaNuoviProdotti = InterfacciaDatabase.generaListaProdottiDaCursore(cursore) 
         
         # Uso la lista di prodotti per creare un dataframe 
-        df = pd.DataFrame.from_records([prodotto.to_dict() for prodotto in listaNuoviProdotti])
+        df = pd.DataFrame.from_records([prodotto._to_dict() for prodotto in listaNuoviProdotti])
         # Aggiungo la colonna degli Id 
         df["idProdotto"] = listaId
         # Uso la colonna degli id come colonna indice del df
         df = df.set_index("idProdotto")
         return df 
 
-def generaListaProdottiDaCursore(cursore : sql.Cursor) -> tuple: 
-    """Genera una lista di prodotti dal cursore del db passato come argomento
+    # Metodi statici 
+    def generaListaProdottiDaCursore(cursore : sql.Cursor) -> tuple: 
+        """Genera una lista di prodotti dal cursore del db passato come argomento
+
+        Args:
+            cursore (sql.Cursor): cursore per generare prodotti
+
+        Returns:
+            tuple: [0] Lista con gli id dei prodotti presi dal db, [1] lista di prodotti
+        """
+        # Lista di prodotti 
+        listaNuoviProdotti = []
+        # Lista con gli id
+        listaId = []
+        for listaValoriAttributi in cursore.fetchall():
+            listaValoriAttributi = list(listaValoriAttributi)
+            # Tolgo l'id
+            listaId.append(listaValoriAttributi.pop(0))
+            # L'elemento all'indice 1 è il costo della materia prima, lo devo togliere 
+            # Al costruttore di Prodotto deve essere passato solo il nome della materia prima
+            listaValoriAttributi.pop(1)
+            # Tolgo guadagno e guadagnoOrario
+            # Nota: Quando fai pop gli indici scalano di uno
+            listaValoriAttributi.pop(8)
+            listaValoriAttributi.pop(8)
+
+            # Aggiusto i None stringa
+            listaValoriAttributi = aggiustaNone(listaValoriAttributi)
+            listaNuoviProdotti.append(Prodotto(*listaValoriAttributi))
+        return (listaId, listaNuoviProdotti)
+        
+    def generaStringaAttributi(oggetto: Prodotto) -> str: 
+        """Genera una stringa contenente la lista degli attributi dell'oggetto passato, separati da una virgola
+
+        Args:
+            oggetto (Prodotto): da cui generare la stringa
+
+        Returns:
+            str: lista di attributi separata da virgola
+        """
+        listaAttributi = "" 
+        for attr in dir(oggetto): 
+            if not attr.startswith("_") : 
+                if attr == "tipoProdotto": 
+                    listaAttributi += "tipoProdotto, "  
+                    listaAttributi += "costoMateriale, "
+                else: 
+                    listaAttributi += attr + ", "
+        return listaAttributi.strip().rstrip(",")
+     
+    def generaStringaValoriAttributi(oggetto: Prodotto) -> str:
+        """Genera una stringa contenente la lista dei valori degli attributi dell'oggetto passato, separati da una virgola
+
+        Args:
+            oggetto (Prodotto): da cui generare la stringa
+
+        Returns:
+            str: lista con i valori degli attributi separata da virgola
+        """
+        listaValoriAttributi = ""
+        for attr in dir(oggetto):
+            if attr == "to_dict": continue
+            if not attr.startswith("_"):
+                # Tipo prodotto lo devo gestire separatamente
+                if attr == "tipoProdotto": 
+                    listaValoriAttributi += "'" + str(getattr(oggetto, attr)[0]) + "'" + ", "
+                    listaValoriAttributi += str(getattr(oggetto, attr)[1]) + ", "
+                elif getattr(oggetto, attr) is not None: 
+                    # Se l'attributo contiene un valore lo inserisco 
+
+                    # Se il valore è stringa o data, metto le ' attorno per scriverlo come stringa
+                    if isinstance(getattr(oggetto, attr), str) or isinstance(getattr(oggetto, attr), d.date): 
+                        listaValoriAttributi += "'" + str(getattr(oggetto, attr)) + "'"+ ", " 
+                    # Altrimenti basta inserire direttamente il valore
+                    else: 
+                        listaValoriAttributi += str(getattr(oggetto, attr)) + ", "
+                
+                # Caso in cui l'attributo è None.
+                else:
+                    # Se sono in uno dei casi di data o stringa, devo lasciare il campo vuoto
+                    if attr in ["dataCommissione", "dataInizio", "dataFine", "acquirente"]:
+                        listaValoriAttributi += "'" + str(getattr(oggetto, attr)) + "'"+ ", " 
+                    else:
+                        # Se l'attributo vuoto è guadagno o guadagnoOrario metto un valore sentinella di -1
+                        listaValoriAttributi += "-1, "
+        return listaValoriAttributi.strip().rstrip(",")
+    
+    
+def aggiustaNone(lista: list) -> list: 
+    """Sostituisce "None" con la keyword None
 
     Args:
-        cursore (sql.Cursor): cursore per generare prodotti
+        lista (list): in cui fare le sostituzioni
 
     Returns:
-        tuple: [0] Lista con gli id dei prodotti presi dal db, [1] lista di prodotti
+        list: con sostituzioni fatte
     """
-    # Lista di prodotti 
-    listaNuoviProdotti = []
-    # Lista con gli id
-    listaId = []
-    for listaAttributi in cursore.fetchall():
-        listaAttributi = list(listaAttributi)
-        # Tolgo l'id
-        listaId.append(listaAttributi.pop(0))
-        # L'elemento all'indice 1 è il costo della materia prima, lo devo togliere 
-        # Al costruttore di Prodotto deve essere passato solo il nome della materia prima
-        listaAttributi.pop(1)
-        # Tolgo guadagno e guadagnoOrario
-        # Nota: Quando fai pop gli indici scalano di uno
-        listaAttributi.pop(8)
-        listaAttributi.pop(8)
-        listaNuoviProdotti.append(Prodotto(*listaAttributi))
-    return (listaId, listaNuoviProdotti)
-        
-     
+    nuovaLista = lista
+    for i in range(len(nuovaLista)): 
+        if nuovaLista[i] == "None" or nuovaLista[i] == "none": 
+            nuovaLista[i] = None 
+    return nuovaLista
 
 from InterpreteFileIni import InterpreteFileIni
 if __name__ == "__main__": 
-    interprete = InterpreteFileIni() 
-    oggetto = interprete.leggiDaFile(os.path.dirname(__file__) + "/../dati/fileConfigurazione/esempio.ini")
-    interfaccia = InterfacciaDatabase() 
-    interfaccia.creaTabellaProdotti()
-    interfaccia.inserisciProdotto(oggetto) 
-    interfaccia.stampaTabella()
-    interfaccia.stampaTabella("guadagno>0")
-    # interfaccia.inserisciProdotto(oggetto2) 
-    # df = interfaccia.toDataframe("tempoLavoro>5")
-    # print(df)
-    # interfaccia.aggiornaCampo(2, "tempoLavoro", 15)
-    # interfaccia.stampaTabella()
-    # print("Ora stampo la ricerca")
-    # interfaccia.stampaDaCursore(interfaccia.ricercaPerParametro("acquirente='Ciccio Gamer'"))
-    # interfaccia.stampaDaCursore(interfaccia.ricercaPerParametro("prezzoTotale > 10")) 
+    db = InterfacciaDatabase()
+    prodotto = InterfacciaDatabase.generaListaProdottiDaCursore(db._inoltraQuery("SELECT * FROM Prodotti WHERE idProdotto=9"))[1][0]
+    
+    db.aggiornaCampo(9, "dataCommissione", "2020,08,10")
+    
+
