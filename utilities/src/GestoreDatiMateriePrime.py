@@ -32,5 +32,3 @@ class GestoreDatiMateriePrime:
 if __name__ == "__main__": 
     gestore = GestoreDatiMateriePrime() 
     print(gestore.dizionarioProdotti)
-    print(type(gestore.dizionarioProdotti["TOTE_BAG"]))
-    gestore.aggiungiTipoProdotto("Borsa_piccola", 5.0)

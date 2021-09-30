@@ -1,6 +1,7 @@
 from InterpreteFileIni import InterpreteFileIni
 from Prodotto import leggiProdottoDaInput 
 from InterfacciaDatabase import InterfacciaDatabase
+from GestoreDatiMateriePrime import GestoreDatiMateriePrime
 import os
 import configparser as c
 import cmd
@@ -8,9 +9,11 @@ import argparse as ap
 
 db = InterfacciaDatabase()
 interprete = InterpreteFileIni() 
+gestoreMaterie = GestoreDatiMateriePrime()
 
 
-# TODO aggiorna elemento nel db
+# TODO Non funziona il confronto tra date (tipo se chiedi di stampare con dataCommissione>qualcosa)
+# TODO Comando per stampare un prodotto su file a partire dall'id nel db  
 
 class GestoreComandi(cmd.Cmd): 
     """
@@ -43,6 +46,7 @@ class GestoreComandi(cmd.Cmd):
         self._creaParser_cambia_path_scrittura()
         self._creaParser_stampa_database()
         self._creaParser_aggiorna_campo()
+        self._creaParser_stampa_prodotto()
     
     def do_esci(self, arg: str) -> bool: 
         """Esce dal programma"""
@@ -68,9 +72,14 @@ class GestoreComandi(cmd.Cmd):
             parsed = self._aggiungi_prodotto_parser.parse_args(arg.split())
         except SystemExit: 
             return 
-        
+         
         if parsed.file: 
-            self._aggiungiProdottoDaFile(parsed.file, parsed.relative)
+            try: 
+                self._aggiungiProdottoDaFile(parsed.file, parsed.relative)
+            except Exception as e: 
+                print("Errore, nell'aggiunta del prodotto da file, stampo i dettagli.")
+                print(e)
+                return 
         else: 
             self._aggiungiProdottoDaInput()
 
@@ -195,6 +204,27 @@ class GestoreComandi(cmd.Cmd):
         print("Gli altri campi non sono modificabili.")
         print()
 
+    def do_stampa_materie(self, arg: str) -> None: 
+        """Stampa i dati delle materie prime registrate e i loro prezzi
+        """
+        print()
+        print("Stampo le materie prime registrate e i loro prezzi:")
+        dizionario = gestoreMaterie.dizionarioProdotti 
+        for key in dizionario: 
+            print(f"Nome: {key}. Costo: {dizionario[key]}")
+        print()
+
+    def help_stampa_prodotto(self) -> None: 
+        print("Stampa un prodotto su file ini. Il prodotto viene specificato tramite l'id, il percorso di stampa è quello impostato con il comando cambia_path_scrittura.")
+        self._stampa_prodotto_parser.print_help()
+    def do_stampa_prodotto(self, arg: str) -> None: 
+        try:
+            parsed = self._stampa_prodotto_parser.parse_args(arg.split())
+        except SystemExit: 
+            return 
+        
+        # TODO
+        
 
     # Metodi privati
     def _aggiungiProdottoDaInput(self) -> None: 
@@ -242,6 +272,7 @@ class GestoreComandi(cmd.Cmd):
             pathAssoluto = nomeFile
         print()
         print("Leggo il prodotto dal file passato")
+        print()
         nuovoProdotto = interprete.leggiDaFile(pathAssoluto)
         print(nuovoProdotto)
         risposta = input("Corretto? Salvo nel database? [S]i/[N]o \n")
@@ -250,7 +281,6 @@ class GestoreComandi(cmd.Cmd):
             print("Salvo nel database...")
             idProdotto = db.inserisciProdotto(nuovoProdotto)
             print("Oggetto aggiunto al database con id " + str(idProdotto))
-    
     
     def _aggiornaCampoInterattivo(self, valoreIdProdotto: int = None, valoreCampo:str = None, valoreNuovoValore = None) -> None: 
         """Aggiorna il campo voluto interattivamente. Chiede da input i campi mancanti
@@ -328,3 +358,7 @@ class GestoreComandi(cmd.Cmd):
         self._aggiorna_campo_parser.add_argument("--idProdotto", type=int, help="Id del prodotto da cambiare")
         self._aggiorna_campo_parser.add_argument("--campo", type=str, help="Campo da cambiare. Per sapere il nome corretto usare il comando stampa_campi")
         self._aggiorna_campo_parser.add_argument("--valore", help="Nuovo valore da inserire")
+
+    def _creaParser_stampa_prodotto(self) -> None: 
+        self._stampa_prodotto_parser = ap.ArgumentParser(prog="Stampa un prodotto in un file ini")
+        self._stampa_prodotto_parser.add_argument("idProdotto", type=int, help="L'id nel db del prodotto da stampare", required=True)

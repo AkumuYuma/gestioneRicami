@@ -41,8 +41,7 @@ class InterpreteFileIni:
         try: 
             tipoProdotto = prodottoLettoDaFile["tipo"]
         except KeyError: 
-            print("[DEBUG] Tipo prodotto non specificato. L'errore è fatale. Esco")
-            exit(1)
+            raise ValueError("Tipo prodotto non specificato. L'errore è fatale. Esco dalla lettura.")
 
         # Controllo che il tipo sia tra quelli già presenti 
         try: 
@@ -53,8 +52,7 @@ class InterpreteFileIni:
                 GestoreDatiMateriePrime().aggiungiTipoProdotto(tipoProdotto, float(prodottoLettoDaFile["costo"]))
                 nuovoProdotto.tipoProdotto = tipoProdotto
             except KeyError: 
-                print("[DEBUG] Inserito un nuovo tipo di prodotto ma non specificato il prezzo. \nL'errore è fatale")
-                quit()
+                raise ValueError("Inserito un nuovo tipo di prodotto ma non specificato il prezzo. \nL'errore è fatale, esco dalla lettura.")
                 
 
         # Setto date e valori numerici
