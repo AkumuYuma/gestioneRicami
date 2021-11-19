@@ -25,20 +25,49 @@ Per stampare la lista dei comandi a disposizione `$help`.
 
 ```bash
 ├── datiPersonali
+|   |
+```
+Sono presenti i dati prodotti o inseriti dall'utente. L'utente dovrebbe cambiare i file **solo** in questa cartella.
+
+```bash
 │   ├── nuoviProdotti
 │   │   └── esempio.ini
 │   └── stampati
-│       └── readme.md
+│       └──
+```
+- /nuoviProdotti/ -> è dove si inseriscono i file .ini da leggere tramite il comando `$ aggiungi_prodotto`. All'interno è presente un file di esempio commentato.
+- /stampati/ -> è la cartella in cui di default vengono stampati i file con il comando `$ stampa_prodotto`
+
+
+```bash
 ├── README.md
 └── utilities
+    |
+```
+Sono presenti i file privati dell'app.
+
+```bash
     ├── dati
     │   ├── database
+    |   |
+```
+- /database/ -> Contiene il database con i prodotti.
+
+```bash
     │   ├── fileConfigurazione
     │   │   ├── esempio.ini
     │   │   └── pathScrittura.ini
+```
+- /fileConfigurazione/ -> Contiene il file in cui viene salvato il path di scrittura per la stampa dei prodotti
+
+```bash
     │   └── tipiMateriaPrima
     │       ├── prezziMateriaPrima.json
     │       └── readme.md
+```
+- /tipiMateriaPrima/ -> Contiene il json dei record di nomi e prezzi materie prime. **Attenzione, cancellando questo file non sarà possibile leggere il database all'interno dell'app! (vedi bug 1)**
+
+```bash
     └── src
         ├── GestoreComandi.py
         ├── GestoreDatiMateriePrime.py
@@ -48,22 +77,14 @@ Per stampare la lista dei comandi a disposizione `$help`.
         ├── main.py
         └── Prodotto.py
 ```
-- /datiPersonali. Sono presenti i dati prodotti o inseriti dall'utente. L'utente dovrebbe cambiare i file **solo** in questa cartella.
-    - /nuoviProdotti/ -> è dove si inseriscono i file .ini da leggere tramite il comando `$ aggiungi_prodotto`. All'interno è presente un file di esempio commentato.
-    - /stampati/ -> è la cartella in cui di default vengono stampati i file con il comando `$ stampa_prodotto`
-- utilities/. Qui c'è il codice e i dati privati del codice.
-    - /dati/ -> Contiene i dati di configurazione.
-        - /database/ -> Contiene il database con i prodotti.
-        - /fileConfigurazione/ -> Contiene il file in cui viene salvato il path di scrittura per la stampa dei prodotti
-        - /tipiMateriaPrima/ -> Contiene il json dei record di nomi e prezzi materie prime. **Attenzione, cancellando questo file non sarà possibile leggere il database all'interno dell'app! (vedi bug 1)**
-    - /src/. Contiene il codice.
-        - __init__.py -> Entrypoint per avviare l'app.
-        - main.py -> Dove è definita la funzione main.
-        - GestoreComandi.py -> Classe per il parsing e l'esecuzione dei comandi. ( Uso della libreria cmd ).
-        - GestoreDatiMateriePrime.py -> Classe che si interfaccia con il file dei record delle materie prime.
-        - InterfacciaDatabase.py -> Classe per l'interfaccia con il database.
-        - InterpreteFileIni.py -> Classe per il parsing dei file .ini ( Uso della libreria configparser ).
-        - Prodotto.py -> Classe che astrae un prodotto.
+- /src/. Contiene il codice.
+    - __init__.py -> Entrypoint per avviare l'app.
+    - main.py -> Dove è definita la funzione main.
+    - GestoreComandi.py -> Classe per il parsing e l'esecuzione dei comandi. ( Uso della libreria cmd ).
+    - GestoreDatiMateriePrime.py -> Classe che si interfaccia con il file dei record delle materie prime.
+    - InterfacciaDatabase.py -> Classe per l'interfaccia con il database.
+    - InterpreteFileIni.py -> Classe per il parsing dei file .ini ( Uso della libreria configparser ).
+    - Prodotto.py -> Classe che astrae un prodotto.
 
 ## Commento e spiegazione dei file .ini
 
