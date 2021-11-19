@@ -25,7 +25,7 @@ Per stampare la lista dei comandi a disposizione `$help`.
 
 ```bash
 ├── datiPersonali
-|   |
+│   │
 ```
 Sono presenti i dati prodotti o inseriti dall'utente. L'utente dovrebbe cambiare i file **solo** in questa cartella.
 
@@ -42,14 +42,14 @@ Sono presenti i dati prodotti o inseriti dall'utente. L'utente dovrebbe cambiare
 ```bash
 ├── README.md
 └── utilities
-    |
+    │
 ```
 Sono presenti i file privati dell'app.
 
 ```bash
     ├── dati
     │   ├── database
-    |   |
+    │   │
 ```
 - /database/ -> Contiene il database con i prodotti.
 
