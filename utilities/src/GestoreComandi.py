@@ -361,4 +361,4 @@ class GestoreComandi(cmd.Cmd):
 
     def _creaParser_stampa_prodotto(self) -> None: 
         self._stampa_prodotto_parser = ap.ArgumentParser(prog="Stampa un prodotto in un file ini")
-        self._stampa_prodotto_parser.add_argument("idProdotto", type=int, help="L'id nel db del prodotto da stampare", required=True)
+        self._stampa_prodotto_parser.add_argument("idProdotto", type=int, help="L'id nel db del prodotto da stampare")
