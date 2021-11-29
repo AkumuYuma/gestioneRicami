@@ -1,5 +1,5 @@
 from InterpreteFileIni import InterpreteFileIni
-from Prodotto import leggiProdottoDaInput 
+from Prodotto import leggiProdottoDaInput, Prodotto 
 from InterfacciaDatabase import InterfacciaDatabase
 from GestoreDatiMateriePrime import GestoreDatiMateriePrime
 import os
@@ -13,7 +13,6 @@ gestoreMaterie = GestoreDatiMateriePrime()
 
 
 # TODO Non funziona il confronto tra date (tipo se chiedi di stampare con dataCommissione>qualcosa)
-# TODO Comando per stampare un prodotto su file a partire dall'id nel db  
 
 class GestoreComandi(cmd.Cmd): 
     """
@@ -25,42 +24,46 @@ class GestoreComandi(cmd.Cmd):
               "Digitare esci o ctrl + d per uscire. \n \n"
     )     
 
-    prompt = "$ "
+    prompt = "> "
 
     def preloop(self) -> None:
-        pathDefault = os.path.dirname(__file__) + "/../../datiPersonali/stampati/"
+        pathDefaultScrittura = os.path.dirname(__file__) + "/../../datiPersonali/stampati/"
+        pathDefaultLettura = os.path.dirname(__file__) + "/../../datiPersonali/nuoviProdotti/"
+
         self.pathFileConfigurazione = os.path.dirname(__file__) + "/../dati/fileConfigurazione/pathScrittura.ini"
         parser = c.ConfigParser() 
         # Se il file esiste 
         if os.path.exists(self.pathFileConfigurazione):
             parser.read(self.pathFileConfigurazione)
             try: 
-                if parser["PATH"]["value"]: 
+                if parser["PATH"]["scrittura"]: 
                     # Se il campo non è vuoto 
-                    self.pathScrittura = parser["PATH"]["value"]
+                    self.pathScrittura = parser["PATH"]["scrittura"]
+                    self.pathLettura = parser["PATH"]["lettura"]
                 else: 
-                    self.pathScrittura = pathDefault
+                    self.pathScrittura = pathDefaultScrittura
+                    self.pathLettura = pathDefaultLettura
             except KeyError: 
                 print("Errore nella lettura del file di configurazione pathScrittura.ini, il valore 'path' non è presente.")        
-        self._creaParser_aggiungi_prodotto()
-        self._creaParser_cambia_path_scrittura()
+        self._creaParser_scrivi_aggiungi_prodotto()
+        self._creaParser_cambia_path()
         self._creaParser_stampa_database()
         self._creaParser_aggiorna_campo()
-        self._creaParser_stampa_prodotto()
     
     def do_esci(self, arg: str) -> bool: 
         """Esce dal programma"""
-        print("Esco dal programma") 
+        print("A presto!") 
         return True
     def do_EOF(self, arg: str) -> bool:
         """Stesso funzionamento di esci"""
         return self.do_esci(arg)
     
+    # ----------------- Operazioni su prodotti 
 
-    # funzione help per il comando aggiungi_prodotto
+    # Aggiungere 
     def help_aggiungi_prodotto(self) -> None: 
         print("""Comando per aggiungere un prodotto, se nessuna opzione specificata, aggiunge da input""")
-        self._aggiungi_prodotto_parser.print_help()
+        self._leggi_scrivi_prodotto_parser.print_help()
     def do_aggiungi_prodotto(self, arg: str) -> None: 
         """Comando per aggiungere un prodotto
 
@@ -69,7 +72,7 @@ class GestoreComandi(cmd.Cmd):
             --no-absolute: deve essere specificato l'intero path del file, se non usata basta usare solo il nome del file
         """
         try: 
-            parsed = self._aggiungi_prodotto_parser.parse_args(arg.split())
+            parsed = self._leggi_scrivi_prodotto_parser.parse_args(arg.split())
         except SystemExit: 
             return 
          
@@ -83,46 +86,26 @@ class GestoreComandi(cmd.Cmd):
         else: 
             self._aggiungiProdottoDaInput()
 
-    def help_cambia_path_scrittura(self) -> None:
-        print("""Cambia path per la scrittura dei prodotti stampati. Di default è dati/stampati/""")
-        self._cambia_path_scrittura_parser.print_help()
-    def do_cambia_path_scrittura(self, arg: str) -> None: 
-        """Cambia path per la scrittura dei prodotti stampati. Di default è dati/stampati/""" 
+    # Modifica campo 
+    def help_aggiorna_campo(self) -> None: 
+        print("Aggiorna un campo nel database. I parametri non specificati nelle opzioni verranno presi interattivamente")
+        print("Per visualizzare il nome corretto di ogni campo, usare stampa_campi")
+        self._aggiorna_campo_parser.print_help()
+    def do_aggiorna_campo(self, arg: str) -> None: 
+        """Aggiorna un campo nel database."""
         try: 
-            parsed = self._cambia_path_scrittura_parser.parse_args(arg.split())
+            parsed = self._aggiorna_campo_parser.parse_args(arg.split())
         except SystemExit: 
             return 
         
-        if parsed.reset: 
-            print() 
-            print("Attualmente il path di scrittura dei nuovi file è: ")
-            print("Resetto il path di scrittura a quello di default.")
-            pathDefault = os.path.dirname(__file__) + "/../../datiPersonali/stampati/"
-            # Cambio il path in live
-            self.pathScrittura = pathDefault 
-            # E modifico il file 
-            parser = c.ConfigParser() 
-            parser["PATH"] = {}
-            parser["PATH"]["value"] = ""
-            with open(self.pathFileConfigurazione, "w") as f:
-                parser.write(f)
-        else: 
-            print()
-            print("Attualmente il path di scrittura dei nuovi file è: ")
-            print(self.pathScrittura)
-            nuovoPath = input("Inserire nuovo path (inserire il path completo): \n")
-            if os.path.isdir(nuovoPath):
-                # Cambio la variabile 
-                self.pathScrittura = nuovoPath
-                # Scrivo su file 
-                parser = c.ConfigParser() 
-                parser["PATH"] = {}
-                parser["PATH"]["value"] = nuovoPath
-                with open(self.pathFileConfigurazione, "w") as f:
-                    parser.write(f)
-            else: 
-                print("Path inserito non valido.")
-         
+        self._aggiornaCampoInterattivo(parsed.idProdotto, parsed.campo, parsed.valore)
+
+    # TODO 
+    # Cancella elemento per id 
+    
+    # Cancella database 
+
+    # Stampa database 
     def help_stampa_database(self) -> None: 
         print("Stampa i prodotti nel database. Senza opzioni stampa tutta la tabella")
         print(self._stampa_database_parser.print_help())
@@ -151,20 +134,45 @@ class GestoreComandi(cmd.Cmd):
             print("Errore, la condizione specificata non è valida")
             return 
     
-    
-    def help_aggiorna_campo(self) -> None: 
-        print("Aggiorna un campo nel database. I parametri non specificati nelle opzioni verranno presi interattivamente")
-        print("Per visualizzare il nome corretto di ogni campo, usare stampa_campi")
-        self._aggiorna_campo_parser.print_help()
-    def do_aggiorna_campo(self, arg: str) -> None: 
-        """Aggiorna un campo nel database."""
-        try: 
-            parsed = self._aggiorna_campo_parser.parse_args(arg.split())
+    # Stampa un prodotto  
+    def help_stampa_prodotto(self) -> None: 
+        print("Stampa un prodotto a schermo o su file. Il prodotto viene specificato tramite l'id, il percorso di stampa è quello impostato con il comando cambia_path_scrittura.")
+        self._leggi_scrivi_prodotto_parser.print_help()
+    def do_stampa_prodotto(self, arg: str) -> None: 
+        """Comando per stampare un prodotto
+
+        Opzioni:
+            -f <pathFile>: stampare prodotto su file 
+            --no-absolute: deve essere specificato l'intero path del file, se non usata basta usare solo il nome del file
+        """
+        try:
+            parsed = self._leggi_scrivi_prodotto_parser.parse_args(arg.split())
         except SystemExit: 
             return 
         
-        self._aggiornaCampoInterattivo(parsed.idProdotto, parsed.campo, parsed.valore)
-    
+        try: 
+            cursore = db.ricercaPerParametro(f"idProdotto={parsed.idProdotto}")
+        except AttributeError:
+            print("Attenzione, l'idProdotto è un campo obbligatorio. Per aiuto stampa_prodotto -h.") 
+            return 
+            
+        _,listaProdotti = InterfacciaDatabase.generaListaProdottiDaCursore(cursore)
+        prodotto = listaProdotti[0]
+        if prodotto: 
+            if parsed.file: 
+                try: 
+                    self._stampaProdottoSuFile(prodotto, parsed.file, parsed.relative)
+                except Exception as e: 
+                    print("Errore, nell'aggiunta del prodotto da file, stampo i dettagli.")
+                    print(e)
+                    return 
+            else: 
+                db.stampaTabella(f"idProdotto={parsed.idProdotto}")
+        
+        else: 
+            print(f"Errore, nessun oggetto trovato con l'id {parsed.idProdotto}") 
+        
+    # Stampa il nome dei campi
     def do_stampa_campi(self, arg: str) -> None: 
         """
         Stampa una lista con il nome di ogni campo dei prodotti e una breve descrizione. 
@@ -204,6 +212,79 @@ class GestoreComandi(cmd.Cmd):
         print("Gli altri campi non sono modificabili.")
         print()
 
+    # ---------------------- Impostazioni 
+    
+    # Cambia path lettura/scrittura 
+    def help_cambia_path(self) -> None:
+        print("""Cambia path per la scrittura dei prodotti stampati. Di default è /datiPersonali/stampati/""")
+        self._cambia_path_parser.print_help()
+    def do_cambia_path(self, arg: str) -> None: 
+        """Cambia path per la scrittura dei prodotti stampati. Di default è datiPersonali/stampati/""" 
+        try: 
+            parsed = self._cambia_path_parser.parse_args(arg.split())
+        except SystemExit: 
+            return 
+        
+        if parsed.reset: 
+            print() 
+            print("Attualmente il path di scrittura dei nuovi file è: ")
+            print("Resetto il path di scrittura a quello di default.")
+            pathDefaultScrittura = os.path.dirname(__file__) + "/../../datiPersonali/stampati/"
+            pathDefaultLettura = os.path.dirname(__file__) + "/../../datiPersonali/nuoviProdotti/"
+            # Cambio il path in live
+            self.pathtScrittura = pathDefaultScrittura 
+            self.pathtLettura = pathDefaultLettura
+            # E modifico il file 
+            parser = c.ConfigParser() 
+            parser["PATH"] = {}
+            parser["PATH"]["scrittura"] = ""
+            parser["PATH"]["lettura"] = ""
+            with open(self.pathFileConfigurazione, "w") as f:
+                parser.write(f)
+        else: 
+            print()
+            print("Attualmente il path di scrittura dei nuovi file è: ")
+            print(self.pathScrittura)
+            print("Il path di lettura di nuovi prodotti è: ")
+            print(self.pathLettura)
+            scelta = input("Quale campo si vuole modificare? [1] per lettura, [2] per scrittura \n")
+            
+            if (scelta == 1 or scelta == 2):
+                nuovoPath = input("Inserire nuovo path (inserire il path completo): \n")
+            else: 
+                print("Scelta non valida") 
+                return 
+
+            if os.path.isdir(nuovoPath):
+                # Scrivo su file 
+                parser = c.ConfigParser() 
+                parser["PATH"] = {}
+
+                if scelta == 1: 
+                    self.pathLettura = nuovoPath 
+                    parser["PATH"]["lettura"] = nuovoPath
+                if scelta == 2:
+                    # Cambio la variabile 
+                    self.pathScrittura = nuovoPath
+                    parser["PATH"]["scrittura"] = nuovoPath
+
+                with open(self.pathFileConfigurazione, "w") as f:
+                    parser.write(f)
+
+            else: 
+                print("Path inserito non valido.")
+
+    
+    
+    # -------------------- Operazioni su materie prime 
+    # TODO  
+    # Aggiungere materia 
+    
+    # Rimuovere materia 
+    
+    # Resettare lista materie 
+    
+    # Stampa lista di materie prime 
     def do_stampa_materie(self, arg: str) -> None: 
         """Stampa i dati delle materie prime registrate e i loro prezzi
         """
@@ -214,19 +295,7 @@ class GestoreComandi(cmd.Cmd):
             print(f"Nome: {key}. Costo: {dizionario[key]}")
         print()
 
-    def help_stampa_prodotto(self) -> None: 
-        print("Stampa un prodotto su file ini. Il prodotto viene specificato tramite l'id, il percorso di stampa è quello impostato con il comando cambia_path_scrittura.")
-        self._stampa_prodotto_parser.print_help()
-    def do_stampa_prodotto(self, arg: str) -> None: 
-        try:
-            parsed = self._stampa_prodotto_parser.parse_args(arg.split())
-        except SystemExit: 
-            return 
-        
-        # TODO
-        
-
-    # Metodi privati
+    # -------------------------  Metodi privati
     def _aggiungiProdottoDaInput(self) -> None: 
         """
         Comando per aggiungere un prodotto
@@ -258,15 +327,14 @@ class GestoreComandi(cmd.Cmd):
         """Aggiunge un prodotto dal file specificato 
 
         Args:
-            path (str): path del file. 
+            nomeFile (str): path del file. 
             pathRelativo (bool, optional): se a True, utilizza l'argomento path solo come nome del file.
             Altrimenti legge path come path assoluto del file. 
             Defaults to True.
         """
         if pathRelativo: 
             # Se pathRelativo è vero uso il path di default e aggiungo solo il nome del file
-            pathDefault = os.path.dirname(__file__) + "/../../datiPersonali/nuoviProdotti/"
-            pathAssoluto = pathDefault + nomeFile
+            pathAssoluto = self.pathLettura + nomeFile
         else:
             # Altrimenti il pathAssoluto sarà dato come argomento
             pathAssoluto = nomeFile
@@ -323,26 +391,48 @@ class GestoreComandi(cmd.Cmd):
             print("Comando interrotto.")
             return 
         
-    # Metodi privati per l'uso di argparse 
-    def _creaParser_aggiungi_prodotto(self) -> None: 
+    def _stampaProdottoSuFile(self, prodotto: Prodotto, nomeFile: str, pathRelativo : bool = True) -> None: 
+        """Stampa un prodotto su un file specificato
+
+        Args:
+            nomeFile (str): path del file 
+            pathRelativo (bool, optional): se a True, utilizza l'argomento path solo come nome del file.
+            Altrimenti legge path come path assoluto del file. 
+            Defaults to True.
         """
-        Crea le variabili di istanza per il parsing degli argomenti del comando aggiungi_prodotto
-        """
-        self._aggiungi_prodotto_parser = ap.ArgumentParser(prog="aggiungi_prodotto")
-        # Opzioni per aggiungere da file
-        self._aggiungi_prodotto_parser.add_argument("-f", "--file", type=str, help = "utilizzo: aggiungi_prodotto -f <path>: aggiungi prodotto da file")
-        # Opzione per specificare path relativo o assoluto 
-        self._aggiungi_prodotto_parser.add_argument("--relative", dest="relative", action="store_true", help="""Permette di utilizzare come path il path relativo, non è necessario specificarla,
-                                            di default è già attiva. Per disattivare vedi --no-relative""")
-        self._aggiungi_prodotto_parser.add_argument("--no-relative", dest="relative", action="store_false", help="""Da usare in combinazione con -f. Se viene usata, è necessario specificare il path completo del file.
-                                            Altrimenti basta specificare il nome del file inserendolo nella cartella /dati/nuoviProdotti.""")
-        # Di default uso il path relativo 
-        self._aggiungi_prodotto_parser.set_defaults(relative=True)
+        if pathRelativo: 
+            # Se pathRelativo è vero uso il path di default e aggiungo solo il nome del file
+            pathDefault = os.path.dirname(__file__) + "/../../datiPersonali/stampati/"
+            pathAssoluto = pathDefault + nomeFile
+        else:
+            # Altrimenti il pathAssoluto sarà dato come argomento
+            pathAssoluto = nomeFile
         
-    def _creaParser_cambia_path_scrittura(self) -> None: 
-        self._cambia_path_scrittura_parser = ap.ArgumentParser(prog="Cambia path scrittura")
-        self._cambia_path_scrittura_parser.add_argument("-r", "--reset", dest="reset", action="store_true", help="Resetta il path di scrittura dei nuovi file a quello di defualt.")
-        self._aggiungi_prodotto_parser.set_defaults(reset=False)
+        interprete.scriviProdottoSuFile(prodotto, pathAssoluto)
+         
+        
+    # ------------------- Metodi privati per l'uso di argparse 
+    def _creaParser_scrivi_aggiungi_prodotto(self) -> None: 
+        """
+        Crea le variabili di istanza per il parsing degli argomenti dei comando aggiungi_prodotto e stampa_prodotto
+        """
+        self._leggi_scrivi_prodotto_parser = ap.ArgumentParser(prog="stampa/aggiungi prodotto")
+        # Opzioni per aggiungere da file
+        self._leggi_scrivi_prodotto_parser.add_argument("--idProdotto", type=int, help="Id del prodotto da stampare.")
+        self._leggi_scrivi_prodotto_parser.add_argument("-f", "--file", type=str, help = "utilizzo: <comando> -f <path>: effettua operazione da/su file")
+        # Opzione per specificare path relativo o assoluto 
+        self._leggi_scrivi_prodotto_parser.add_argument("--relative", dest="relative", action="store_true", help="""Permette di utilizzare come path il path relativo, non è necessario specificarla,
+                                            di default è già attiva. Per disattivare vedi --no-relative""")
+        self._leggi_scrivi_prodotto_parser.add_argument("--no-relative", dest="relative", action="store_false", help="""Da usare in combinazione con -f. Se viene usata, è necessario specificare il path completo del file.
+                                            Altrimenti basta specificare il nome del file inserendolo nella cartella /datiPersonali/nuoviProdotti.
+                                            Se stai scrivendo un prodotto su file, esso verrà scritto in automatico in /datiPersonali/stampati.""")
+        # Di default uso il path relativo 
+        self._leggi_scrivi_prodotto_parser.set_defaults(relative=True)
+        
+    def _creaParser_cambia_path(self) -> None: 
+        self._cambia_path_parser = ap.ArgumentParser(prog="Cambia path scrittura/lettura dei file")
+        self._cambia_path_parser.add_argument("-r", "--reset", dest="reset", action="store_true", help="Resetta il path di scrittura dei nuovi file a quello di defualt.")
+        self._cambia_path_parser.set_defaults(reset=False)
     
     def _creaParser_stampa_database(self) -> None: 
         self._stampa_database_parser = ap.ArgumentParser(prog="Stampa database con query")
@@ -358,7 +448,3 @@ class GestoreComandi(cmd.Cmd):
         self._aggiorna_campo_parser.add_argument("--idProdotto", type=int, help="Id del prodotto da cambiare")
         self._aggiorna_campo_parser.add_argument("--campo", type=str, help="Campo da cambiare. Per sapere il nome corretto usare il comando stampa_campi")
         self._aggiorna_campo_parser.add_argument("--valore", help="Nuovo valore da inserire")
-
-    def _creaParser_stampa_prodotto(self) -> None: 
-        self._stampa_prodotto_parser = ap.ArgumentParser(prog="Stampa un prodotto in un file ini")
-        self._stampa_prodotto_parser.add_argument("idProdotto", type=int, help="L'id nel db del prodotto da stampare")

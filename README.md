@@ -91,8 +91,6 @@ Sollevare un'eccezione nel metodo `InterfacciaDatabase.generaListaProdottiDaCurs
 3. Nella funzione `GestoreComandi._creaPartser_stampa_prodotto()` voglio che l'argomento "idProdotto" sia required ma il metodo `add_argument` dice di non avere un argomento con la keyword "required".
 **Da risolvere guardando la documentazione della libreria cmd**
 
-# TODOS
-- Finire il comando `GestoreComandi.do_stampa_prodotto()`. Inserire possibilità di scegliere se stampare a schermo o su file
 
 # TODOS (non di codice)
 - Inserire i link per scaricare python e pip
